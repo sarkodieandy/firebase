@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ChatScreen extends StatefulWidget {
   static const String id = 'chat_screen';
 
-  const ChatScreen({super.key}); // Use 'const' for route names
+  const ChatScreen({Key? key}) : super(key: key);
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? loggedInUser;
+  late String messageText;
 
   @override
   void initState() {
@@ -34,17 +37,44 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  //create a method to retrieve messages
+  // void getMessages() async {
+  //   final  messages =
+  //       await FirebaseFirestore.instance.collection('messages').get();
+  //   for (var message in messages.docs) {
+  //     print(message.data());
+  //   }
+  // }
+
+  //creating message stream for both the sender and the reciever
+  void messageStream() async {
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance.collection('messages').get();
+      for (var message in snapshot.docs) {
+        print(message.data());
+      }
+    } catch (e) {
+      print('Error fetching messages: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('⚡️Chat'), // Set your app title
+        title: const Text('⚡️Chat'),
         actions: <Widget>[
           IconButton(
-            icon: const Icon(Icons.logout), // Add logout icon
+            icon: const Icon(Icons.logout),
             onPressed: () {
-              // Implement logout functionality
-              // For example, call _auth.signOut() here
+              messageStream();
+              // try {
+              //   await _auth.signOut();
+              //   // Navigate to login screen or any other desired screen
+              // } catch (e) {
+              //   print('Error during logout: $e');
+              // }
             },
           ),
         ],
@@ -64,7 +94,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       onChanged: (value) {
-                        // Handle user input
+                        setState(() {
+                          messageText = value;
+                        });
                       },
                       decoration: const InputDecoration(
                         hintText: 'Type your message...',
@@ -75,7 +107,16 @@ class _ChatScreenState extends State<ChatScreen> {
                   IconButton(
                     icon: const Icon(Icons.send),
                     onPressed: () {
-                      // Implement send functionality
+                      if (messageText.isNotEmpty) {
+                        _firestore.collection('messages').add({
+                          'text': messageText,
+                          'sender': loggedInUser!.email,
+                        });
+                        // Clear the input field after sending the message
+                        setState(() {
+                          messageText = '';
+                        });
+                      }
                     },
                   ),
                 ],
